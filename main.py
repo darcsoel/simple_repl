@@ -1,20 +1,80 @@
-"""
-
-This is a sample Python script.
-
-Press Shift+F10 to execute it or replace it with your code.
-Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.//
-
-"""
+import re
+from typing import Optional, Union
 
 
-def print_hi(name: str) -> None:
-    """Use a breakpoint in the code line below to debug your script."""
-    print(f"Hi, {name}...")  # Press Ctrl+F8 to toggle the breakpoint.
+def tokenize(expression):
+    if expression == "":
+        return []
+
+    regex = re.compile("\s*(=>|[-+*\/\%=\(\)]|[A-Za-z_][A-Za-z0-9_]*|[0-9]*\.?[0-9]+)\s*")
+    tokens = regex.findall(expression)
+    return [s for s in tokens if not s.isspace()]
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == "__main__":
-    print_hi("PyCharm")
+class Interpreter:
+    def __init__(self):
+        self.vars = {}
+        self.functions = {
+            '+': self.add,
+            '-': self.minus,
+            '*': self.multiply,
+            '/': self.divide,
+            '%': self.module,
+            '=': self.init_var,
+            None: self.retrieve_var
+        }
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    def init_var(self, name, value):
+        try:
+            value = int(value)
+        except ValueError:
+            # if not int - just move on
+            pass
+
+        self.vars[name] = value
+        return value
+
+    def retrieve_var(self, name) -> Union[int, str]:
+        try:
+            return self.vars[name]
+        except KeyError:
+            return f"Invalid identifier. No variable with name '{name}' was found."
+
+    @staticmethod
+    def add(first: str, second: str) -> int:
+        return int(first) + int(second)
+
+    @staticmethod
+    def minus(first: str, second: str) -> int:
+        return int(first) - int(second)
+
+    @staticmethod
+    def multiply(first: str, second: str) -> int:
+        return int(first) * int(second)
+
+    @staticmethod
+    def divide(first: str, second: str) -> float:
+        return int(first) / int(second)
+
+    @staticmethod
+    def module(first: str, second: str) -> int:
+        return int(first) % int(second)
+
+    def input(self, expression: str) -> Optional[Union[int, float, str]]:
+        tokens = tokenize(expression)
+
+        result = ''
+
+        if len(tokens) == 1:
+            # if REPL have request for var retrieve - have separate branch
+            return self.retrieve_var(tokens[0])
+
+        if not set(self.functions).intersection(tokens):
+            raise ValueError
+
+        for index, token in enumerate(tokens):
+            if token in self.functions:
+                result = self.functions[token](tokens[index-1], tokens[index + 1])
+                tokens[index-1:index+2] = str(result)
+
+        return result
