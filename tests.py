@@ -8,6 +8,10 @@ from main import Interpreter
 interpreter = Interpreter()
 
 
+def test_empty_input() -> None:
+    assert interpreter.input("") == ""
+
+
 def test_add_with_repl() -> None:
     assert interpreter.input("1 + 1") == 2
 
@@ -38,4 +42,21 @@ def test_get_existing_variable() -> None:
 
 def test_reject_invalid_input() -> None:
     with pytest.raises(ValueError):
-        interpreter.input('1 2')
+        interpreter.input("1 2")
+
+
+def test_multiply_operations_1() -> None:
+    assert interpreter.input("4 + 2 * 3") == 10
+
+
+def test_multiply_operations_2() -> None:
+    assert interpreter.input("4 / 2 * 3") == 6
+
+
+def test_multiply_operations_3() -> None:
+    assert interpreter.input("7 % 2 * 8") == 8
+
+
+#
+# def test_multiply_with_parenthesis() -> None:
+#     assert interpreter.input("(4 + 2) * 3") == 18

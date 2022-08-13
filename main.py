@@ -1,30 +1,31 @@
 import re
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 
-def tokenize(expression):
+def tokenize(expression: str) -> List[str]:
     if expression == "":
         return []
 
-    regex = re.compile("\s*(=>|[-+*\/\%=\(\)]|[A-Za-z_][A-Za-z0-9_]*|[0-9]*\.?[0-9]+)\s*")
+    regex = re.compile(r"\s*(=>|[-+*\/\%=\(\)]|[A-Za-z_][A-Za-z0-9_]*|[0-9]*\.?[0-9]+)\s*")
     tokens = regex.findall(expression)
     return [s for s in tokens if not s.isspace()]
 
 
 class Interpreter:
-    def __init__(self):
-        self.vars = {}
+    def __init__(self) -> None:
         self.functions = {
-            '+': self.add,
-            '-': self.minus,
-            '*': self.multiply,
-            '/': self.divide,
-            '%': self.module,
-            '=': self.init_var,
-            None: self.retrieve_var
+            "=": self.init_var,
+            "%": self.module,
+            "/": self.divide,
+            "*": self.multiply,
+            "+": self.add,
+            "-": self.minus,
+            None: self.retrieve_var,
         }
+        self.vars: Dict[str, Union[int, str]] = {}
+        self.priority = ["*", "/", "%"]
 
-    def init_var(self, name, value):
+    def init_var(self, name: str, value: Union[int, str]) -> Union[int, str]:
         try:
             value = int(value)
         except ValueError:
@@ -34,7 +35,7 @@ class Interpreter:
         self.vars[name] = value
         return value
 
-    def retrieve_var(self, name) -> Union[int, str]:
+    def retrieve_var(self, name: str) -> Union[int, str]:
         try:
             return self.vars[name]
         except KeyError:
@@ -63,7 +64,8 @@ class Interpreter:
     def input(self, expression: str) -> Optional[Union[int, float, str]]:
         tokens = tokenize(expression)
 
-        result = ''
+        if not tokens:
+            return ""
 
         if len(tokens) == 1:
             # if REPL have request for var retrieve - have separate branch
@@ -72,9 +74,22 @@ class Interpreter:
         if not set(self.functions).intersection(tokens):
             raise ValueError
 
-        for index, token in enumerate(tokens):
-            if token in self.functions:
-                result = self.functions[token](tokens[index-1], tokens[index + 1])
-                tokens[index-1:index+2] = str(result)
+        index = 0
+        operators = iter(self.functions)
+        operator = next(operators)
 
-        return result
+        while len(tokens) > 1:
+            token = tokens[index]
+
+            if operator in tokens:
+                if token != operator:
+                    index += 1
+                    continue
+                else:
+                    func = self.functions[operator]
+                    tokens[index - 1 : index + 2] = [func(tokens[index - 1], tokens[index + 1])]  # type: ignore
+                    index = 0
+            else:
+                operator = next(operators)
+
+        return tokens[0]
