@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 
 def tokenize(expression: str) -> List[str]:
@@ -14,13 +14,12 @@ def tokenize(expression: str) -> List[str]:
 class Interpreter:
     def __init__(self) -> None:
         self.functions = {
-            "=": self.init_var,
             "%": self.module,
             "/": self.divide,
             "*": self.multiply,
             "+": self.add,
             "-": self.minus,
-            None: self.retrieve_var,
+            "=": self.init_var,
         }
         self.vars: Dict[str, Union[int, str]] = {}
         self.priority = ["*", "/", "%"]
@@ -35,41 +34,60 @@ class Interpreter:
         self.vars[name] = value
         return value
 
-    def retrieve_var(self, name: str) -> Union[int, str]:
-        try:
-            return self.vars[name]
-        except KeyError:
-            return f"Invalid identifier. No variable with name '{name}' was found."
+    def parse_value(self, value: str) -> int:
+        if value in self.vars:
+            return int(self.vars[value])
+
+        return int(value)
+
+    def add(self, first: str, second: str) -> int:
+        return self.parse_value(first) + self.parse_value(second)
+
+    def minus(self, first: str, second: str) -> int:
+        return self.parse_value(first) - self.parse_value(second)
+
+    def multiply(self, first: str, second: str) -> int:
+        return self.parse_value(first) * self.parse_value(second)
+
+    def divide(self, first: str, second: str) -> float:
+        return self.parse_value(first) / self.parse_value(second)
+
+    def module(self, first: str, second: str) -> int:
+        return self.parse_value(first) % self.parse_value(second)
 
     @staticmethod
-    def add(first: str, second: str) -> int:
-        return int(first) + int(second)
+    def parse_parenthesis(tokens: List[str]) -> Tuple[int, int]:
+        count_open = 0
+        count_close = 0
 
-    @staticmethod
-    def minus(first: str, second: str) -> int:
-        return int(first) - int(second)
+        index_open = []
+        index_close = []
 
-    @staticmethod
-    def multiply(first: str, second: str) -> int:
-        return int(first) * int(second)
+        for index, token in enumerate(tokens):
+            if token == "(":
+                index_open.append(index)
+                count_open += 1
+            elif token == ")":
+                index_close.append(index)
+                count_close += 1
+            else:
+                continue
 
-    @staticmethod
-    def divide(first: str, second: str) -> float:
-        return int(first) / int(second)
+            if index_close and count_open == count_close:
+                return index_open[0], index_close[-1]
 
-    @staticmethod
-    def module(first: str, second: str) -> int:
-        return int(first) % int(second)
+        raise ValueError
 
-    def input(self, expression: str) -> Optional[Union[int, float, str]]:
-        tokens = tokenize(expression)
+    def input(self, expression: str) -> Union[int, str]:
+        tokens: List[str] = tokenize(expression)
 
         if not tokens:
             return ""
 
         if len(tokens) == 1:
+            var_: str = tokens[0]
             # if REPL have request for var retrieve - have separate branch
-            return self.retrieve_var(tokens[0])
+            return self.vars[var_]
 
         if not set(self.functions).intersection(tokens):
             raise ValueError
@@ -79,6 +97,12 @@ class Interpreter:
         operator = next(operators)
 
         while len(tokens) > 1:
+            try:
+                open_, close_ = self.parse_parenthesis(tokens)
+                tokens[open_ : close_ + 1] = [str(self.input(" ".join(tokens[open_ + 1 : close_])))]
+            except ValueError:
+                pass
+
             token = tokens[index]
 
             if operator in tokens:
